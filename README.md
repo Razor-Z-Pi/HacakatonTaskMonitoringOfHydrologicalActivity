@@ -1,0 +1,2 @@
+# HacakatonTaskMonitoringOfHydrologicalActivity
+Мониторинг гидрологической активности / Monitoring of hydrological activity
