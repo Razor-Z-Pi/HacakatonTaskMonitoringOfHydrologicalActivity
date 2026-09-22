@@ -1,11 +1,5 @@
-"""Векторизация растровых масок: маска -> полигоны -> GeoJSON (EPSG:4326) / Shapefile.
-
-Площадь каждого полигона считается в исходной проекции (метровой, EPSG:32652),
-а геометрия отдаётся клиенту уже в WGS84, как того требует Leaflet.
-"""
 from __future__ import annotations
 
-import shutil
 import tempfile
 import zipfile
 from pathlib import Path
@@ -39,10 +33,8 @@ def mask_to_geodataframe(
             continue
         poly = shapely_shape(geom)
         if crs and crs.is_projected:
-            # Все растры кейса в метровом EPSG:32652 — poly.area уже в м^2.
             area_ha = round(poly.area / 10_000.0, 4)
         else:
-            # Подстраховка на случай нестандартного (не метрового) CRS во входных данных.
             n_px_equiv = poly.area / max(abs(transform.a * transform.e), 1e-12)
             area_ha = round(n_px_equiv * px_area_ha, 4)
         if area_ha < min_area_ha:
@@ -65,7 +57,7 @@ def mask_to_geojson(
     fallback_pixel_area_ha: float,
     min_area_ha: float = 0.0,
 ) -> dict[str, Any]:
-    """Маска -> GeoJSON FeatureCollection в EPSG:4326 (для отдачи в Leaflet)."""
+    """Маска -> GeoJSON FeatureCollection в EPSG:4326"""
     gdf = mask_to_geodataframe(mask, profile, feature_type, fallback_pixel_area_ha, min_area_ha)
     if gdf.empty:
         return {"type": "FeatureCollection", "features": []}

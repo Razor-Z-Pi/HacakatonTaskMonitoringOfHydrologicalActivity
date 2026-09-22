@@ -4,8 +4,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
       - ./predictions:/app/predictions
+      - ./configs:/app/configs:ro
     environment:
       - HYDROMONITOR_CONFIG=/app/configs/config.yaml
     restart: unless-stopped

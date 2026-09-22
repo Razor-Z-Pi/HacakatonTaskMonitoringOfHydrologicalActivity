@@ -1,4 +1,3 @@
-"""Загрузка YAML-конфига сервиса. Единая точка правды по путям и порогам."""
 from __future__ import annotations
 
 import os
@@ -52,6 +51,10 @@ class AppConfig:
     @property
     def submission_csv(self) -> Path:
         return self._abs(self.raw["paths"]["submission_csv"])
+
+    @property
+    def sample_submission_csv(self) -> Path:
+        return self._abs(self.raw["paths"]["sample_submission_csv"])
 
     @property
     def static_dir(self) -> Path:

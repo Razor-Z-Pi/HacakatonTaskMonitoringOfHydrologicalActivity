@@ -1,31 +1,30 @@
-# Единая точка конфигурации сервиса.
-# Ничего из порогов/путей не должно дублироваться константами в коде (критерий "Структура проекта").
-
 paths:
   data_root: data
-  rasters_dir: data/rasters            # data/rasters/<event_id>/<aoi_name>/...
-  vectors_dir: data/vectors            # границы, гидрография, бассейны
-  tables_dir: data/tables              # реестр событий, каталог сцен, pairs.csv
+  rasters_dir: data/rasters
+  vectors_dir: data/vectors
+  tables_dir: data/tables
   reference_masks_dir: data/reference_masks
-  predictions_dir: predictions         # <pair_id>_flood.tif и кэш промежуточных масок
+  predictions_dir: predictions
   submission_csv: predictions/submission.csv
-  static_dir: static
-  pairs_table: data/tables/pairs.csv
+  sample_submission_csv: data/sample_submission.csv
+  static_dir: frontend
+  pairs_table: data/pairs.csv
 
 grid:
   crs: "EPSG:32652"
   pixel_size_m: 10.0
-  # 10 x 10 м = 100 м^2 = 0.01 га; используется как fallback,
   # фактическая площадь пикселя всегда пересчитывается из аффинной трансформации растра.
   pixel_area_ha_fallback: 0.01
 
 raster_files:
-  # Имена файлов внутри rasters/<event_id>/<aoi_name>/ — по составу набора из постановки кейса.
-  s1_pre: "S1_pre.tif"          # VV, VH, VV_VH_ratio, дБ
+  s1_pre: "S1_pre.tif"
   s1_peak: "S1_peak.tif"
-  s2_pre: "SENTINEL2_pre.tif"   # B3,B4,B8,B11 + NDWI,MNDWI,NDVI,AWEIsh (может отсутствовать)
+  s2_pre: "SENTINEL2_pre.tif"   #
   s2_peak: "SENTINEL2_peak.tif"
-  aux: "AUX_terrain_gsw.tif"    # slope,hand,occurrence,seasonality,max_extent,builtup
+  aux: "AUX_terrain_gsw.tif"
+  s2_pre_json: "SENTINEL2_pre.json"
+  s2_peak_json: "SENTINEL2_peak.json"
+  era5_daily: "ERA5_daily.csv"
 
 # Индексы каналов (0-based) внутри многоканальных GeoTIFF.
 band_indices:
@@ -47,8 +46,6 @@ band_indices:
     builtup: 5
 
 segmentation:
-  # baseline — классический пайплайн, включён "из коробки", чтобы сервис был воспроизводим без ML.
-  # Реальная модель (LightGBM и т.п.) подключается отдельно, см. src/segmentation/registry.py
   backend: "baseline"
   otsu:
     vv_min_db: -22.0
@@ -68,7 +65,6 @@ analysis:
   apply_mmu_to_change: true
 
 cache:
-  # Если true — маски пересчитываются даже при наличии файла в predictions/.
   force_recompute: false
 
 api:

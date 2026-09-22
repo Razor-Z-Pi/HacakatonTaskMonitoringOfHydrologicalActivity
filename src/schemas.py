@@ -58,6 +58,7 @@ class ContourLayer(str, Enum):
     pre = "pre"
     peak = "peak"
     flood = "flood"
+    receded = "receded"   # ИЗМЕНЕНО: добавлено, чтобы сервис отдавал убыль водного зеркала (требование PDF)
 
 
 class DownloadFormat(str, Enum):

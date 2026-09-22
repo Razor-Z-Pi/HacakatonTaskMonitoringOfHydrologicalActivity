@@ -1,9 +1,7 @@
-"""Низкоуровневые операции с растрами: чтение, площадь пикселя, запись масок uint8."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import rasterio
@@ -44,12 +42,7 @@ def read_raster(path: Path) -> RasterStack:
 
 
 def pixel_area_ha(profile: Profile, fallback_ha: float) -> float:
-    """Реальная площадь пикселя в гектарах из аффинной трансформации.
-
-    Не полагаемся на константу 10x10 м из конфига "вслепую" — считаем по
-    фактическому transform, а fallback используем только если transform
-    вырожден (что означает проблему с данными, а не норму).
-    """
+    """Реальная площадь пикселя в гектарах из аффинной трансформации."""
     transform = profile.get("transform")
     if transform is None:
         return fallback_ha

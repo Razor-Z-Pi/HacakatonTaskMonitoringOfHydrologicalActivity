@@ -1,9 +1,3 @@
-"""Оркестрация данных: от реестра пар до готовых масок/площадей/GeoJSON.
-
-Здесь и только здесь backend знает про файловую структуру набора данных
-(rasters/<event_id>/<aoi_name>/...), про кэш в predictions/ и про формат
-submission.csv. API-роуты работают только с этим классом.
-"""
 from __future__ import annotations
 
 import csv
@@ -34,18 +28,31 @@ class DataRepository:
         self.cfg = cfg
         self.segmenter = segmenter
         self._pairs: dict[str, dict] = {}
+        self._sample_pair_ids: list[str] = []
         self._lock = threading.Lock()
+        self._load_sample_submission()
         self._load_pairs_table()
 
     # ------------------------------------------------------------------
     # Реестр пар
     # ------------------------------------------------------------------
+    def _load_sample_submission(self) -> None:
+        """Читает обязательный перечень пар из sample_submission.csv."""
+        path = self.cfg.sample_submission_csv
+        if not path.exists():
+            logger.warning("sample_submission.csv не найден: %s", path)
+            return
+        with open(path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            self._sample_pair_ids = [row["pair_id"].strip() for row in reader]
+        logger.info("Загружено %d пар из %s", len(self._sample_pair_ids), path)
+
     def _load_pairs_table(self) -> None:
         path = self.cfg.pairs_table
         if not path.exists():
             logger.warning(
                 "Реестр пар не найден: %s. API /api/pairs будет отдавать пустой список, "
-                "пока файл не появится (см. tables/pairs.csv в наборе данных соревнования).",
+                "пока файл не появится (см. data/pairs.csv в наборе данных соревнования).",
                 path,
             )
             return
@@ -60,9 +67,23 @@ class DataRepository:
                     "date_pre": row["date_pre"].strip(),
                     "date_peak": row["date_peak"].strip(),
                     "group": row.get("group", "event").strip() or "event",
-                    "has_optical": (row.get("has_optical", "true").strip().lower() != "false"),
+                    "has_optical": self._detect_optical(row),
                 }
         logger.info("Загружено %d пар из %s", len(self._pairs), path)
+
+        missing = set(self._sample_pair_ids) - set(self._pairs)
+        if missing:
+            logger.warning(
+                "Пары из sample_submission.csv отсутствуют в реестре: %s. "
+                "Они будут засчитаны с нулевыми площадями.", missing
+            )
+
+    def _detect_optical(self, row: dict) -> bool:
+        """Определяет доступность оптики по наличию SENTINEL2_*.json паспорта."""
+        pair_dir = self.cfg.rasters_dir / row["event_id"].strip() / row["aoi_name"].strip()
+        s2_pre = pair_dir / self.cfg.raster_files.get("s2_pre_json", "SENTINEL2_pre.json")
+        s2_peak = pair_dir / self.cfg.raster_files.get("s2_peak_json", "SENTINEL2_peak.json")
+        return s2_pre.exists() and s2_peak.exists()
 
     def list_pairs(self) -> list[PairSummary]:
         return [
@@ -93,14 +114,26 @@ class DataRepository:
     def _raster_path(self, pair_row: dict, key: str) -> Path:
         return self._pair_dir(pair_row) / self.cfg.raster_files[key]
 
+    def _reference_mask_path(self, pair_id: str) -> Path:
+        return self.cfg.reference_masks_dir / f"reference_{pair_id}.tif"
+
     # ------------------------------------------------------------------
-    # Построение признаков (выравнивание AUX на эталонную сетку S1)
+    # Построение признаков (выравнивание AUX на эталонную сетку из reference_masks)
     # ------------------------------------------------------------------
     def _build_feature_stack(self, pair_row: dict) -> PairFeatureStack:
         bi = self.cfg.band_indices
+
+        ref_mask_path = self._reference_mask_path(pair_row["pair_id"])
+        if not ref_mask_path.exists():
+            raise FileNotFoundError(
+                f"Эталонная маска не найдена: {ref_mask_path}. "
+                "Сетка пары задаётся эталоном reference_masks/reference_<pair_id>.tif."
+            )
+        with rasterio.open(ref_mask_path) as src:
+            ref_profile = src.profile.copy()
+
         s1_pre = read_raster(self._raster_path(pair_row, "s1_pre"))
         s1_peak = read_raster(self._raster_path(pair_row, "s1_peak"))
-        ref_profile = s1_pre.profile  # каноническая сетка 10 м пары
 
         aux_path = self._raster_path(pair_row, "aux")
         aux_stack = read_raster(aux_path)
@@ -291,11 +324,21 @@ class DataRepository:
             with open(path, "r", encoding="utf-8") as f:
                 for row in csv.DictReader(f):
                     rows[row["pair_id"]] = row
+
+        flood_ha = areas.flood_ha
+        water_peak_ha = areas.water_peak_ha
+        if flood_ha > water_peak_ha:
+            logger.warning(
+                "Пара %s: flood_ha (%.2f) > water_peak_ha (%.2f), обрезаю flood_ha.",
+                pair_id, flood_ha, water_peak_ha,
+            )
+            flood_ha = water_peak_ha
+
         rows[pair_id] = {
             "pair_id": pair_id,
-            "flood_ha": f"{areas.flood_ha:.2f}",
+            "flood_ha": f"{flood_ha:.2f}",
             "water_pre_ha": f"{areas.water_pre_ha:.2f}",
-            "water_peak_ha": f"{areas.water_peak_ha:.2f}",
+            "water_peak_ha": f"{water_peak_ha:.2f}",
         }
         with open(path, "w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["pair_id", "flood_ha", "water_pre_ha", "water_peak_ha"])
@@ -304,7 +347,39 @@ class DataRepository:
                 writer.writerow(r)
 
     def build_full_submission(self) -> Path:
-        """Прогоняет все пары реестра и формирует полный submission.csv."""
-        for pair_id in self._pairs:
-            self.write_submission_row(pair_id)
-        return self.cfg.submission_csv
+        """Прогоняет все пары из sample_submission.csv и формирует полный submission.csv.
+
+        Пары, отсутствующие в реестре, записываются с нулевыми площадями.
+        """
+        path = self.cfg.submission_csv
+        pair_ids = self._sample_pair_ids if self._sample_pair_ids else list(self._pairs)
+        rows: list[dict] = []
+        for pair_id in pair_ids:
+            if pair_id in self._pairs:
+                areas = self.get_areas(pair_id)
+                flood_ha = areas.flood_ha
+                water_peak_ha = areas.water_peak_ha
+                if flood_ha > water_peak_ha:
+                    logger.warning(
+                        "Пара %s: flood_ha (%.2f) > water_peak_ha (%.2f), обрезаю flood_ha.",
+                        pair_id, flood_ha, water_peak_ha,
+                    )
+                    flood_ha = water_peak_ha
+                rows.append({
+                    "pair_id": pair_id,
+                    "flood_ha": f"{flood_ha:.2f}",
+                    "water_pre_ha": f"{areas.water_pre_ha:.2f}",
+                    "water_peak_ha": f"{water_peak_ha:.2f}",
+                })
+            else:
+                rows.append({
+                    "pair_id": pair_id,
+                    "flood_ha": "0.00",
+                    "water_pre_ha": "0.00",
+                    "water_peak_ha": "0.00",
+                })
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["pair_id", "flood_ha", "water_pre_ha", "water_peak_ha"])
+            writer.writeheader()
+            writer.writerows(rows)
+        return path

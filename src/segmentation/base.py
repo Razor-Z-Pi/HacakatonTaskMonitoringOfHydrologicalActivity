@@ -1,8 +1,3 @@
-"""Контракт между backend-сервисом и модулем сегментации (Модуль 1 из постановки кейса).
-
-ML-модель разрабатывается отдельно и должна реализовать класс Segmenter ниже —
-тогда backend подключит её без изменений в остальном коде (см. registry.py).
-"""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -15,15 +10,14 @@ from rasterio.profiles import Profile
 
 @dataclass
 class PairFeatureStack:
-    """Все признаки одной пары "до/пик", уже выровненные на единую сетку 10 м."""
-
+    """Выравненные признаки одной пары до/пик"""
     # SAR, дБ
     vv_pre: np.ndarray
     vh_pre: np.ndarray
     vv_peak: np.ndarray
     vh_peak: np.ndarray
 
-    # Оптика (может отсутствовать — 4 из 8 паводковых пар и все контрольные без оптики)
+    # Оптика
     ndwi_pre: Optional[np.ndarray]
     mndwi_pre: Optional[np.ndarray]
     ndvi_pre: Optional[np.ndarray]
@@ -36,12 +30,12 @@ class PairFeatureStack:
     # AUX, выровненные на эталонную сетку
     slope: np.ndarray
     hand: np.ndarray
-    occurrence: np.ndarray  # %, встречаемость воды JRC GSW
+    occurrence: np.ndarray
     seasonality: np.ndarray
     max_extent: np.ndarray
     builtup: np.ndarray
 
-    profile: Profile  # геопривязка канонической сетки
+    profile: Profile
 
     @property
     def has_optical(self) -> bool:
@@ -55,9 +49,9 @@ class PairFeatureStack:
 
 @dataclass
 class SegmentationResult:
-    water_pre: np.ndarray   # bool-маска, водная поверхность на дату "до"
-    water_peak: np.ndarray  # bool-маска, водная поверхность на дату пика
-    meta: dict              # диагностика: пороги, доли пропусков и т.п.
+    water_pre: np.ndarray
+    water_peak: np.ndarray
+    meta: dict
 
 
 class Segmenter(ABC):

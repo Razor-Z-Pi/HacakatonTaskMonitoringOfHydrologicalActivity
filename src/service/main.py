@@ -1,8 +1,3 @@
-"""Точка входа сервиса.
-
-Запуск: uvicorn src.service.main:app --host 0.0.0.0 --port 8000
-(из корня репозитория, чтобы относительные пути конфига разрешались верно).
-"""
 from __future__ import annotations
 
 import logging

@@ -4,8 +4,27 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ccf7d4bd-f1f3-4f59-97a6-694c79ace504" name="Changes" comment="v1">
+    <list default="true" id="ccf7d4bd-f1f3-4f59-97a6-694c79ace504" name="Changes" comment="v1.1">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configs/config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/config.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/align/warp.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/align/warp.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/analysis/change.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/analysis/change.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/geoutils/raster_io.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/geoutils/raster_io.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/geoutils/vectorize.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/geoutils/vectorize.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/repository.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/repository.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/schemas.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/segmentation/base.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/segmentation/base.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/segmentation/baseline.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/segmentation/baseline.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/segmentation/registry.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/segmentation/registry.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/service/api/routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/service/api/routes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/service/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/service/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/app.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/style.css" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/vendor/README.md" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +77,9 @@
       <option name="presentableId" value="Default" />
       <updated>1790054606895</updated>
       <workItem from="1790054608282" duration="5978000" />
-      <workItem from="1790065469582" duration="299000" />
+      <workItem from="1790065469582" duration="596000" />
+      <workItem from="1790069854622" duration="1000" />
+      <workItem from="1790070433659" duration="1944000" />
     </task>
     <task id="LOCAL-00001" summary="v1">
       <option name="closed" value="true" />
@@ -68,7 +89,23 @@
       <option name="project" value="LOCAL" />
       <updated>1790065656713</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="v1.1">
+      <option name="closed" value="true" />
+      <created>1790065866896</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1790065866896</updated>
+    </task>
+    <task id="LOCAL-00003" summary="v1.1">
+      <option name="closed" value="true" />
+      <created>1790065889701</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1790065889702</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -87,6 +124,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="v1" />
-    <option name="LAST_COMMIT_MESSAGE" value="v1" />
+    <MESSAGE value="v1.1" />
+    <option name="LAST_COMMIT_MESSAGE" value="v1.1" />
   </component>
 </project>

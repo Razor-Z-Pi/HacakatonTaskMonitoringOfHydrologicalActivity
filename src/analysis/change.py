@@ -1,9 +1,3 @@
-"""Модуль 2: сравнение состояний "до"/"пик" -> flood (новое затопление) и receded (убыль).
-
-flood = вода на пике, которой не было "до", и которая не является постоянной.
-receded = вода была "до", ушла к пику, не является постоянной.
-Определения — по разделу "Что считается водой" постановки кейса.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,7 +17,7 @@ class ChangeResult:
 
 
 def permanent_water_mask(occurrence_pct: np.ndarray, occurrence_min_pct: float) -> np.ndarray:
-    """Постоянная вода по многолетнему архиву JRC GSW (occurrence >= порога)."""
+    """Постоянная вода по архиву JRC GSW"""
     return occurrence_pct >= occurrence_min_pct
 
 
@@ -68,12 +62,7 @@ def compute_areas_ha(
 def compute_landcover_breakdown(
     flood: np.ndarray, builtup: np.ndarray, profile: Profile, fallback_pixel_area_ha: float
 ) -> dict[str, float]:
-    """Простая разбивка зоны затопления по типу покрова (застройка / прочее).
-
-    Более детальная разбивка (пашня, лес и т.п.) требует дополнительных слоёв
-    земного покрова, не входящих в базовый AUX-набор, и может быть добавлена
-    отдельным признаком без изменения контракта функции.
-    """
+    """Простая разбивка зоны затопления по типу покрова."""
     built_up_ha = mask_area_ha(flood & builtup.astype(bool), profile, fallback_pixel_area_ha)
     total_ha = mask_area_ha(flood, profile, fallback_pixel_area_ha)
     other_ha = round(max(total_ha - built_up_ha, 0.0), 2)

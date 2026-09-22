@@ -45,7 +45,7 @@ def get_areas(pair_id: str, repo: DataRepository = Depends(get_repository)) -> A
 @router.get("/pairs/{pair_id}/contours")
 def get_contours(
     pair_id: str,
-    layer: ContourLayer = Query(..., description="pre | peak | flood"),
+    layer: ContourLayer = Query(..., description="pre | peak | flood | receded"),
     repo: DataRepository = Depends(get_repository),
 ) -> JSONResponse:
     _get_pair_or_404(repo, pair_id)
@@ -83,7 +83,7 @@ def get_mask(
 def download(
     pair_id: str,
     format: DownloadFormat = Query(..., description="geojson | shp"),
-    layer: ContourLayer = Query(ContourLayer.flood, description="pre | peak | flood"),
+    layer: ContourLayer = Query(ContourLayer.flood, description="pre | peak | flood | receded"),
     repo: DataRepository = Depends(get_repository),
 ):
     _get_pair_or_404(repo, pair_id)
@@ -95,7 +95,14 @@ def download(
     mask, profile = masks[layer.value]
 
     if format == DownloadFormat.geojson:
-        geojson = repo.get_contours_geojson(pair_id, layer.value)
+        from ...geoutils.vectorize import mask_to_geojson
+
+        geojson = mask_to_geojson(
+            mask,
+            profile,
+            feature_type=layer.value,
+            fallback_pixel_area_ha=repo.cfg.pixel_area_ha_fallback,
+        )
         return JSONResponse(
             content=geojson,
             headers={"Content-Disposition": f'attachment; filename="{pair_id}_{layer.value}.geojson"'},
@@ -110,9 +117,19 @@ def download(
 
 @router.post("/submission/build")
 def build_submission(repo: DataRepository = Depends(get_repository)):
-    """Служебный эндпоинт: прогоняет все пары реестра и формирует submission.csv."""
+    """Служебный эндпоинт: прогоняет все пары из sample_submission.csv
+    и формирует submission.csv. Пары, отсутствующие в реестре, пишутся с нулями. """
     path = repo.build_full_submission()
     return {"submission_csv": str(path)}
+
+
+@router.get("/submission")
+def get_submission(repo: DataRepository = Depends(get_repository)) -> FileResponse:
+    """Отдаёт готовый submission.csv. Если файла нет — строит его."""
+    path = repo.cfg.submission_csv
+    if not path.exists():
+        path = repo.build_full_submission()
+    return FileResponse(path, media_type="text/csv", filename=path.name)
 
 
 @router.get("/health")
