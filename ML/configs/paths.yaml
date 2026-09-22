@@ -1,0 +1,10 @@
+# Пути. data_dir относителен корня проекта; переопределяется HYDRO_DATA_DIR.
+# Подкаталоги data_dir — относительны каталога данных.
+paths:
+  data_dir: ../hydrowatch_amur
+  rasters_dir: rasters
+  reference_masks_dir: reference_masks
+  vectors_dir: vectors
+  tables_dir: tables
+  # куда писать submission.csv, predictions/, models/, reports/ (относит. корня проекта)
+  output_dir: output

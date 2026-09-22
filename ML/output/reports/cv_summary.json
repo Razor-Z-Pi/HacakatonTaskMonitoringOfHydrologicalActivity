@@ -1,0 +1,4 @@
+{
+  "leave_one_event_out": {"score": 0.1957, "q_flood": 0.197, "q_water_peak": 0.289, "q_water_pre": 0.231, "spec_base": 0.000},
+  "leave_one_aoi_out": {"score": 0.2564, "q_flood": 0.239, "q_water_peak": 0.310, "q_water_pre": 0.235, "spec_base": 0.240}
+}

@@ -1,0 +1,42 @@
+{
+  "cv": {},
+  "n_samples": 3060777,
+  "final_train_score": {
+    "Q_flood": 0.247445,
+    "Q_water_peak": 0.255349,
+    "Q_water_pre": 0.224524,
+    "Spec_base": 0.108391,
+    "Score": 0.225125
+  },
+  "threshold": 0.46399999999999997,
+  "feature_names": [
+    "slope",
+    "hand",
+    "occurrence",
+    "seasonality",
+    "max_extent",
+    "builtup",
+    "dist_river",
+    "hand_le_25",
+    "slope_le_5",
+    "occ_ge_80",
+    "floodable",
+    "vv",
+    "vh",
+    "vv_vh_ratio",
+    "vv_lee",
+    "vh_lee",
+    "vv_vh_diff",
+    "b3",
+    "b4",
+    "b8",
+    "b11",
+    "ndwi",
+    "mndwi",
+    "ndvi",
+    "aweish",
+    "has_optical",
+    "is_peak"
+  ],
+  "runtime_sec": 1002.2
+}
