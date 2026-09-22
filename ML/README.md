@@ -56,6 +56,7 @@ hydrowatch_amur/
 earthengine authenticate                                   # один раз, интерактивно
 uv run python download_gee.py --project <EE_PROJECT> --dry-run   # план, без GEE
 uv run python download_gee.py --project <EE_PROJECT>             # экспорт + скачивание
+uv run python download_gee.py --project <EE_PROJECT> --download-only --workers 6  # докачать готовое
 ```
 
 По умолчанию экспорт идёт в GEE-ассеты и скачивается автоматически; с

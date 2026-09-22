@@ -244,9 +244,11 @@ def _download(ee, job, asset_id):
     print(f"  скачано: {job.target}")
 
 
-def _download_existing(ee, jobs, project):
-    """Скачать уже готовые ассеты (режим --download-only), не трогая экспорт."""
-    done = 0
+def _download_existing(ee, jobs, project, workers=6):
+    """Скачать уже готовые ассеты параллельно (режим --download-only)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    todo = []
     for j in jobs:
         if j.target.exists():
             continue
@@ -256,8 +258,21 @@ def _download_existing(ee, jobs, project):
                 continue  # ассет ещё не готов
         except ee.ee_exception.EEException:
             continue
-        _download(ee, j, aid)
-        done += 1
+        todo.append((j, aid))
+    if not todo:
+        print("Нет готовых ассетов для скачивания.")
+        return
+    print(f"Скачивание {len(todo)} ассетов (в {workers} потоков)…")
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {ex.submit(_download, ee, j, aid): j for j, aid in todo}
+        for fut in as_completed(futs):
+            j = futs[fut]
+            try:
+                fut.result()
+                done += 1
+            except Exception as e:  # noqa: BLE001 — один плохой ассет не валит остальные
+                print(f"  [FAIL] {j.target.name}: {type(e).__name__}: {e}")
     print(f"Скачано ассетов: {done}")
 
 
@@ -282,6 +297,8 @@ def main() -> None:
     ap.add_argument("--skip-fetch", action="store_true", help="только экспортировать, не скачивать")
     ap.add_argument("--download-only", action="store_true",
                     help="не экспортировать, только скачать уже готовые ассеты")
+    ap.add_argument("--workers", type=int, default=6,
+                    help="параллельных скачиваний (для --download-only)")
     args = ap.parse_args()
 
     cfg = load_config()
@@ -301,7 +318,7 @@ def main() -> None:
     ee.Initialize(project=args.project)
     if args.download_only:
         print("\nСкачивание готовых ассетов…")
-        _download_existing(ee, jobs, args.project)
+        _download_existing(ee, jobs, args.project, workers=args.workers)
         return
     if args.backend == "asset":
         # toAsset не создаёт промежуточные папки ассетов — создаём их заранее.
