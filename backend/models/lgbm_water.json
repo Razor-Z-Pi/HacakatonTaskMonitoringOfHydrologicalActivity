@@ -1,0 +1,32 @@
+{
+  "feature_names": [
+    "slope",
+    "hand",
+    "occurrence",
+    "seasonality",
+    "max_extent",
+    "builtup",
+    "dist_river",
+    "hand_le_25",
+    "slope_le_5",
+    "occ_ge_80",
+    "floodable",
+    "vv",
+    "vh",
+    "vv_vh_ratio",
+    "vv_lee",
+    "vh_lee",
+    "vv_vh_diff",
+    "b3",
+    "b4",
+    "b8",
+    "b11",
+    "ndwi",
+    "mndwi",
+    "ndvi",
+    "aweish",
+    "has_optical",
+    "is_peak"
+  ],
+  "threshold": 0.46399999999999997
+}

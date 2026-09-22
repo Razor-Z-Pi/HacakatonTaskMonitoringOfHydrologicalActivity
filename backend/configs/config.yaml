@@ -17,10 +17,12 @@ grid:
   pixel_area_ha_fallback: 0.01
 
 raster_files:
-  s1_pre: "S1_pre.tif"
-  s1_peak: "S1_peak.tif"
-  s2_pre: "SENTINEL2_pre.tif"   #
-  s2_peak: "SENTINEL2_peak.tif"
+  # {date_pre_sar} и т.п. подставляются из pairs.csv — имена растров датированные
+  # (S1_pre_<date>.tif), как их кладёт ML-выгрузка download_gee.py.
+  s1_pre: "S1_pre_{date_pre_sar}.tif"
+  s1_peak: "S1_peak_{date_peak_sar}.tif"
+  s2_pre: "SENTINEL2_pre_{date_pre_opt}.tif"
+  s2_peak: "SENTINEL2_peak_{date_peak_opt}.tif"
   aux: "AUX_terrain_gsw.tif"
   s2_pre_json: "SENTINEL2_pre.json"
   s2_peak_json: "SENTINEL2_peak.json"
@@ -33,6 +35,10 @@ band_indices:
     vh: 1
     vv_vh_ratio: 2
   s2:
+    b3: 0
+    b4: 1
+    b8: 2
+    b11: 3
     ndwi: 4
     mndwi: 5
     ndvi: 6
@@ -46,7 +52,16 @@ band_indices:
     builtup: 5
 
 segmentation:
-  backend: "baseline"
+  backend: "lightgbm"
+  # ML-модель (подключается через registry.py -> src/segmentation/ml_model.py).
+  # Пороги постобработки дублируют configs/thresholds.yaml ML-части.
+  lightgbm:
+    model_path: "models/lgbm_water.txt"
+    min_unit_px: 25        # мин. картируемая единица (связные компоненты)
+    permanent_occ: 80.0    # occurrence >= 80% -> постоянное зеркало
+    drop_db: 3.0           # падение VV на пике >= 3 дБ — признак затопления
+    speckle_window: 5      # окно фильтра Ли
+    lee_enl: 5.0           # эффективное число взглядов
   otsu:
     vv_min_db: -22.0
     vv_max_db: -12.0

@@ -1,6 +1,6 @@
 services:
   hydromonitor:
-    build: ../../VS_Code/Hakaton/hydromonitor_backend/hydromonitor
+    build: .
     ports:
       - "8000:8000"
     volumes:

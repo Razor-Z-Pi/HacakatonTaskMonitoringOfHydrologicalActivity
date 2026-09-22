@@ -1,11 +1,13 @@
 /* ============================================================
- *  api.js — слой доступа к данным
- *  Ожидаемые эндпоинты бэкенда (все возвращают JSON):
- *    GET /api/scenes                       -> [{id, date, label, cloud}]
- *    GET /api/water?before=<id>&after=<id> -> FeatureCollection
- *    GET /api/report?before=<id>&after=<id>-> {summary, zones:[...]}  (опц.)
+ *  api.js — слой доступа к данным (реальный API backend)
  *
- *  Если бэкенд недоступен — включается demo-режим с синтетикой.
+ *  Эндпоинты бэкенда (src/service/api/routes.py):
+ *    GET /api/pairs                                -> [{pair_id, event_id, aoi_name,
+ *                                                     date_pre, date_peak, group, has_optical}]
+ *    GET /api/pairs/{id}/contours?layer=<l>        -> FeatureCollection (pre|peak|flood|receded)
+ *    GET /api/pairs/{id}/areas                     -> {flood_ha, water_pre_ha, water_peak_ha, aoi_ha}
+ *    GET /api/pairs/{id}/report                    -> полный отчёт
+ *    GET /api/pairs/{id}/download?format=geojson|shp&layer=<l>
  * ============================================================ */
 (function (global) {
   'use strict';
@@ -33,143 +35,24 @@
     return 0;
   }
 
-  const MOCK_SCENES = [
-    { id: 's2-2024-04-12', date: '2024-04-12', label: '12.04.2024 · Sentinel-2 · межень',      cloud: 3  },
-    { id: 's2-2024-05-07', date: '2024-05-07', label: '07.05.2024 · Sentinel-2',                cloud: 12 },
-    { id: 's2-2024-05-19', date: '2024-05-19', label: '19.05.2024 · Sentinel-2 · подъём',       cloud: 8  },
-    { id: 's2-2024-06-02', date: '2024-06-02', label: '02.06.2024 · Sentinel-2 · пик',          cloud: 6  },
-    { id: 's2-2024-06-21', date: '2024-06-21', label: '21.06.2024 · Sentinel-2 · спад',         cloud: 4  }
-  ];
-
-  // Русло Амура у Комсомольска-на-Амуре
-  const RIVER = [
-    [136.88, 50.640], [136.98, 50.596], [137.09, 50.560],
-    [137.21, 50.522], [137.34, 50.492], [137.47, 50.455]
-  ];
-
-  const FLOOD_PATCHES = [
-    { c: [137.030, 50.548], r: [0.0140, 0.0062], rot:  0.42 },
-    { c: [137.205, 50.480], r: [0.0175, 0.0078], rot: -0.30 },
-    { c: [136.945, 50.598], r: [0.0105, 0.0052], rot:  0.12 },
-    { c: [137.320, 50.470], r: [0.0120, 0.0058], rot: -0.18 }
-  ];
-
-  function band(line, widthDeg) {
-    const left = [], right = [];
-    for (let i = 0; i < line.length; i++) {
-      const p = line[i], prev = line[i - 1] || p, next = line[i + 1] || p;
-      const dx = next[0] - prev[0], dy = next[1] - prev[1];
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len, ny = dx / len;
-      const w = widthDeg * (0.8 + 0.35 * Math.sin(i * 1.7));
-      left.push([p[0] + nx * w, p[1] + ny * w]);
-      right.push([p[0] - nx * w, p[1] - ny * w]);
-    }
-    const ring = left.concat(right.reverse());
-    ring.push(ring[0]);
-    return ring;
-  }
-
-  function ellipse(cx, cy, rx, ry, rot, n) {
-    n = n || 28;
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-      const a = 2 * Math.PI * i / n;
-      const x = rx * Math.cos(a), y = ry * Math.sin(a);
-      pts.push([
-        cx + x * Math.cos(rot) - y * Math.sin(rot),
-        cy + x * Math.sin(rot) + y * Math.cos(rot)
-      ]);
-    }
-    pts.push(pts[0]);
-    return pts;
-  }
-
-  function mkFeature(ring, layer, date, name) {
-    const geom = { type: 'Polygon', coordinates: [ring] };
-    return {
-      type: 'Feature',
-      geometry: geom,
-      properties: {
-        layer: layer,
-        date: date,
-        name: name,
-        area_ha: +geomAreaHa(geom).toFixed(1)
-      }
-    };
-  }
-
-  function mockWater(beforeId, afterId) {
-    const iB = Math.max(0, MOCK_SCENES.findIndex(s => s.id === beforeId));
-    const iA = Math.max(0, MOCK_SCENES.findIndex(s => s.id === afterId));
-    const dBefore = (MOCK_SCENES[iB] || MOCK_SCENES[0]).date;
-    const dAfter  = (MOCK_SCENES[iA] || MOCK_SCENES[0]).date;
-
-    const wB = 0.0035 + 0.0016 * iB;
-    const wA = 0.0055 + 0.0034 * iA;
-    const k  = Math.max(0, (iA - iB)) / 4;
-
-    const features = [];
-
-    features.push(mkFeature(band(RIVER, wB), 'before', dBefore, 'Водная поверхность (до)'));
-    features.push(mkFeature(band(RIVER, wA), 'peak',   dAfter,  'Водная поверхность (пик)'));
-
-    FLOOD_PATCHES.forEach((p, i) => {
-      if (k <= 0.05) return;
-      const s = 0.45 + 0.75 * k;
-      const ring = ellipse(p.c[0], p.c[1], p.r[0] * s, p.r[1] * s, p.rot);
-      features.push(mkFeature(ring, 'new', dAfter, 'Зона нового затопления #' + (i + 1)));
-    });
-
-    return { type: 'FeatureCollection', features: features, _demo: true };
-  }
-
+  // Маппинг слоёв backend (properties.type) -> слои карты MapView.
   const LAYER_ALIAS = {
-    before: 'before', water_before: 'before', waterBefore: 'before', ref: 'before',
-    peak: 'peak', water_peak: 'peak', waterPeak: 'peak', after: 'peak', max: 'peak',
-    new: 'new', new_flood: 'new', newFlood: 'new', flood: 'new', flooded: 'new'
+    pre: 'before', before: 'before', water_pre: 'before', ref: 'before',
+    peak: 'peak', water_peak: 'peak', after: 'peak',
+    flood: 'new', new: 'new', new_flood: 'new', flooded: 'new',
+    receded: 'receded'
   };
 
-  function normalizeFC(payload) {
-    if (!payload) return { type: 'FeatureCollection', features: [] };
-
-    let features = [];
-
-    if (payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
-      features = payload.features.slice();
-    } else if (Array.isArray(payload)) {
-      features = payload.slice();
-    } else {
-      Object.keys(payload).forEach(key => {
-        const layer = LAYER_ALIAS[key];
-        if (!layer) return;
-        const v = payload[key];
-        const arr = (v && v.type === 'FeatureCollection') ? v.features
-                  : Array.isArray(v) ? v : [];
-        arr.forEach(f => {
-          f.properties = Object.assign({}, f.properties, { layer: layer });
-          features.push(f);
-        });
-      });
-    }
-
-    features.forEach(f => {
-      const p = f.properties = f.properties || {};
-      p.layer = LAYER_ALIAS[p.layer] || LAYER_ALIAS[p.type] || 'before';
-      if (p.area_ha == null) p.area_ha = +geomAreaHa(f.geometry).toFixed(1);
-      else p.area_ha = +Number(p.area_ha).toFixed(1);
-    });
-
-    return { type: 'FeatureCollection', features: features, meta: payload.meta || null };
-  }
-
-  let demoMode = false;
-
-  function isDemo() { return demoMode; }
+  const LAYER_NAMES = {
+    before: 'Вода «до»',
+    peak: 'Вода (пик)',
+    new: 'Новое затопление',
+    receded: 'Убыль водного зеркала'
+  };
 
   async function getJSON(path, timeoutMs) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs || 9000);
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs || 15000);
     try {
       const res = await fetch(BASE + path, {
         signal: ctrl.signal,
@@ -182,52 +65,62 @@
     }
   }
 
-  async function getScenes() {
-    try {
-      const data = await getJSON('/api/scenes');
-      if (!Array.isArray(data) || !data.length) throw new Error('пустой список');
-      demoMode = false;
-      return data;
-    } catch (e) {
-      console.warn('[api] /api/scenes недоступен => demo-режим:', e.message);
-      demoMode = true;
-      return MOCK_SCENES.map(s => Object.assign({}, s));
-    }
+  async function getPairs() {
+    const data = await getJSON('/api/pairs', 15000);
+    return Array.isArray(data) ? data : [];
   }
 
-  async function getWater(beforeId, afterId) {
-    const qs = '?before=' + encodeURIComponent(beforeId) + '&after=' + encodeURIComponent(afterId);
-    if (!demoMode) {
-      try {
-        const data = await getJSON('/api/water' + qs, 15000);
-        const fc = normalizeFC(data);
-        if (!fc.features.length) throw new Error('нет объектов');
-        return fc;
-      } catch (e) {
-        console.warn('[api] /api/water недоступен => demo-данные:', e.message);
-        demoMode = true;
-      }
-    }
-    return normalizeFC(mockWater(beforeId, afterId));
+  async function getContours(pairId, layer) {
+    // Первый запрос может запускать сегментацию + векторизацию — даём большой таймаут.
+    const data = await getJSON(
+      '/api/pairs/' + encodeURIComponent(pairId) + '/contours?layer=' + encodeURIComponent(layer),
+      120000
+    );
+    return normalizeFC(data, layer);
   }
 
-  async function getReport(beforeId, afterId, localStats) {
-    if (!demoMode) {
-      try {
-        const qs = '?before=' + encodeURIComponent(beforeId) + '&after=' + encodeURIComponent(afterId);
-        return await getJSON('/api/report' + qs, 9000);
-      } catch (e) {
-        console.warn('[api] /api/report недоступен => локальный отчёт:', e.message);
-      }
+  async function getAreas(pairId) {
+    return await getJSON('/api/pairs/' + encodeURIComponent(pairId) + '/areas', 120000);
+  }
+
+  async function getReport(pairId) {
+    return await getJSON('/api/pairs/' + encodeURIComponent(pairId) + '/report', 120000);
+  }
+
+  function downloadUrl(pairId, layer, format) {
+    return BASE + '/api/pairs/' + encodeURIComponent(pairId) +
+      '/download?format=' + encodeURIComponent(format) + '&layer=' + encodeURIComponent(layer);
+  }
+
+  function normalizeFC(payload, defaultLayer) {
+    let features = [];
+    if (payload && payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
+      features = payload.features.slice();
     }
-    return null; // app.js построит отчёт сам
+
+    features.forEach(f => {
+      const p = f.properties = f.properties || {};
+      const layer = LAYER_ALIAS[p.type] || LAYER_ALIAS[defaultLayer] || 'before';
+      p.layer = layer;
+      if (!p.name) p.name = LAYER_NAMES[layer] || layer;
+      p.area_ha = p.area_ha == null
+        ? +geomAreaHa(f.geometry).toFixed(1)
+        : +Number(p.area_ha).toFixed(1);
+    });
+
+    return {
+      type: 'FeatureCollection',
+      features: features,
+      meta: (payload && payload.meta) || null
+    };
   }
 
   global.API = {
-    getScenes: getScenes,
-    getWater: getWater,
+    getPairs: getPairs,
+    getContours: getContours,
+    getAreas: getAreas,
     getReport: getReport,
-    geomAreaHa: geomAreaHa,
-    isDemo: isDemo
+    downloadUrl: downloadUrl,
+    geomAreaHa: geomAreaHa
   };
 })(window);

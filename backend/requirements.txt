@@ -11,6 +11,7 @@ geopandas==1.1.*
 shapely==2.1.*
 pyproj==3.8.*
 scikit-image==0.26.*
+lightgbm==4.*
 
 plotly==5.*
 matplotlib==3.*

@@ -37,6 +37,20 @@ class PairFeatureStack:
 
     profile: Profile
 
+    # Сырые каналы S2 (L2A, отражение 0..1) — нужны ML-признакам b3/b4/b8/b11.
+    # Поля со значениями по умолчанию объявлены последними (требование dataclass).
+    b3_pre: Optional[np.ndarray] = None
+    b4_pre: Optional[np.ndarray] = None
+    b8_pre: Optional[np.ndarray] = None
+    b11_pre: Optional[np.ndarray] = None
+    b3_peak: Optional[np.ndarray] = None
+    b4_peak: Optional[np.ndarray] = None
+    b8_peak: Optional[np.ndarray] = None
+    b11_peak: Optional[np.ndarray] = None
+
+    # Гидроконтекст: расстояние до ближайшего водотока (м)
+    dist_river: Optional[np.ndarray] = None
+
     @property
     def has_optical(self) -> bool:
         return self.ndwi_peak is not None

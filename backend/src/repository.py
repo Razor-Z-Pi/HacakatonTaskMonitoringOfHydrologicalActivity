@@ -5,8 +5,12 @@ import logging
 import threading
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import rasterio
+from rasterio.features import rasterize
+from rasterio.transform import array_bounds
+from scipy.ndimage import distance_transform_edt
 
 from .align.warp import categorical_warp_to_reference, warp_to_reference
 from .analysis.change import compute_areas_ha, compute_change, compute_landcover_breakdown
@@ -66,8 +70,17 @@ class DataRepository:
                     "aoi_name": row["aoi_name"].strip(),
                     "date_pre": row["date_pre_sar"].strip(),
                     "date_peak": row["date_peak_sar"].strip(),
-                    "group": row.get("event_kind", "event").strip() or "event",
+                    # pairs.csv: event_kind ∈ {rain_flood, baseline}; PairGroup знает event/control.
+                    "group": "control" if row.get("event_kind", "").strip() == "baseline" else "event",
                     "has_optical": self._detect_optical(row),
+                    # сырые колонки реестра — нужны для подстановки в имена растров
+                    # и per-pair путей к rasters/reference (см. _pair_dir, _raster_path).
+                    "rasters_dir": (row.get("rasters_dir") or "").strip(),
+                    "reference_mask": (row.get("reference_mask") or "").strip(),
+                    "date_pre_sar": row["date_pre_sar"].strip(),
+                    "date_peak_sar": row["date_peak_sar"].strip(),
+                    "date_pre_opt": (row.get("date_pre_opt") or "").strip(),
+                    "date_peak_opt": (row.get("date_peak_opt") or "").strip(),
                 }
         logger.info("Загружено %d пар из %s", len(self._pairs), path)
 
@@ -84,7 +97,7 @@ class DataRepository:
         date_peak_opt = (row.get("date_peak_opt") or "").strip()
         if date_pre_opt and date_peak_opt:
             return True
-        pair_dir = self.cfg.rasters_dir / row["event_id"].strip() / row["aoi_name"].strip()
+        pair_dir = self._pair_dir(row)
         s2_pre = pair_dir / self.cfg.raster_files.get("s2_pre_json", "SENTINEL2_pre.json")
         s2_peak = pair_dir / self.cfg.raster_files.get("s2_peak_json", "SENTINEL2_peak.json")
         return s2_pre.exists() and s2_peak.exists()
@@ -115,18 +128,55 @@ class DataRepository:
     def _pair_dir(self, pair_row: dict) -> Path:
         if pair_row.get("rasters_dir"):
             p = Path(pair_row["rasters_dir"])
-            return p if p.is_absolute() else (self.cfg.root / p)
+            # paths в pairs.csv заданы относительно корня датасета (data/), а не корня репо.
+            return p if p.is_absolute() else (self.cfg.data_root / p)
         return self.cfg.rasters_dir / pair_row["event_id"] / pair_row["aoi_name"]
 
     def _raster_path(self, pair_row: dict, key: str) -> Path:
-        return self._pair_dir(pair_row) / self.cfg.raster_files[key]
+        # raster_files может содержать плейсхолдеры {date_pre_sar} и т.п. —
+        # подставляем даты из реестра пары (датированные имена S1_pre_<date>.tif).
+        name = self.cfg.raster_files[key].format(**pair_row)
+        return self._pair_dir(pair_row) / name
 
     def _reference_mask_path(self, pair_id: str) -> Path:
         pair_row = self._pairs.get(pair_id, {})
         if pair_row.get("reference_mask"):
             p = Path(pair_row["reference_mask"])
-            return p if p.is_absolute() else (self.cfg.root / p)
+            return p if p.is_absolute() else (self.cfg.data_root / p)
         return self.cfg.reference_masks_dir / f"reference_{pair_id}.tif"
+
+    def _dist_river(self, pair_id: str, ref_profile: dict) -> np.ndarray:
+        """Расстояние (м) до ближайшего водотока на эталонной сетке пары.
+
+        Растеризует vectors/hydrography_osm.geojson на сетку эталона и считает
+        евклидово расстояние. Кэшируется в predictions/ (gitignored) — как в ML-части.
+        """
+        cache = self.cfg.predictions_dir / f"{pair_id}_dist_river.npy"
+        if cache.exists():
+            return np.load(cache)
+
+        gdf = gpd.read_file(self.cfg.vectors_dir / "hydrography_osm.geojson")
+        ref_crs = ref_profile["crs"]
+        if gdf.crs is None:
+            gdf = gdf.set_crs(ref_crs)
+        elif gdf.crs != ref_crs:
+            gdf = gdf.to_crs(ref_crs)
+
+        transform = ref_profile["transform"]
+        height, width = ref_profile["height"], ref_profile["width"]
+        left, bottom, right, top = array_bounds(height, width, transform)
+        gdf = gdf.cx[left:right, bottom:top]
+
+        shapes = ((g, 1) for g in gdf.geometry if g is not None and not g.is_empty)
+        river = rasterize(shapes, out_shape=(height, width), transform=transform,
+                          fill=0, dtype="uint8").astype(bool)
+        dist_px = distance_transform_edt(~river)
+        pixel_m = float(np.sqrt(abs(transform.a * transform.e - transform.b * transform.d)))
+        dist_m = (dist_px * pixel_m).astype("float32")
+
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cache, dist_m)
+        return dist_m
 
     # ------------------------------------------------------------------
     # Построение признаков (выравнивание AUX на эталонную сетку из reference_masks)
@@ -161,6 +211,8 @@ class DataRepository:
         max_extent = aux_data[aux_idx["max_extent"]]
         builtup = aux_data[aux_idx["builtup"]] > 0.5
 
+        dist_river = self._dist_river(pair_row["pair_id"], ref_profile)
+
         s1_idx = bi["s1"]
         vv_pre, vh_pre = s1_pre.band(s1_idx["vv"]), s1_pre.band(s1_idx["vh"])
         vv_peak, vh_peak = s1_peak.band(s1_idx["vv"]), s1_peak.band(s1_idx["vh"])
@@ -171,6 +223,8 @@ class DataRepository:
 
         ndwi_pre = mndwi_pre = ndvi_pre = aweish_pre = None
         ndwi_peak = mndwi_peak = ndvi_peak = aweish_peak = None
+        b3_pre = b4_pre = b8_pre = b11_pre = None
+        b3_peak = b4_peak = b8_peak = b11_peak = None
         if has_optical:
             s2i = bi["s2"]
             s2_pre = read_raster(s2_pre_path)
@@ -180,6 +234,10 @@ class DataRepository:
                 s2_peak_data = warp_to_reference(s2_peak, ref_profile)
             else:
                 s2_pre_data, s2_peak_data = s2_pre.data, s2_peak.data
+            b3_pre, b4_pre = s2_pre_data[s2i["b3"]], s2_pre_data[s2i["b4"]]
+            b8_pre, b11_pre = s2_pre_data[s2i["b8"]], s2_pre_data[s2i["b11"]]
+            b3_peak, b4_peak = s2_peak_data[s2i["b3"]], s2_peak_data[s2i["b4"]]
+            b8_peak, b11_peak = s2_peak_data[s2i["b8"]], s2_peak_data[s2i["b11"]]
             ndwi_pre, mndwi_pre = s2_pre_data[s2i["ndwi"]], s2_pre_data[s2i["mndwi"]]
             ndvi_pre, aweish_pre = s2_pre_data[s2i["ndvi"]], s2_pre_data[s2i["aweish"]]
             ndwi_peak, mndwi_peak = s2_peak_data[s2i["ndwi"]], s2_peak_data[s2i["mndwi"]]
@@ -189,8 +247,10 @@ class DataRepository:
             vv_pre=vv_pre, vh_pre=vh_pre, vv_peak=vv_peak, vh_peak=vh_peak,
             ndwi_pre=ndwi_pre, mndwi_pre=mndwi_pre, ndvi_pre=ndvi_pre, aweish_pre=aweish_pre,
             ndwi_peak=ndwi_peak, mndwi_peak=mndwi_peak, ndvi_peak=ndvi_peak, aweish_peak=aweish_peak,
+            b3_pre=b3_pre, b4_pre=b4_pre, b8_pre=b8_pre, b11_pre=b11_pre,
+            b3_peak=b3_peak, b4_peak=b4_peak, b8_peak=b8_peak, b11_peak=b11_peak,
             slope=slope, hand=hand, occurrence=occurrence, seasonality=seasonality,
-            max_extent=max_extent, builtup=builtup, profile=ref_profile,
+            max_extent=max_extent, builtup=builtup, dist_river=dist_river, profile=ref_profile,
         )
 
     # ------------------------------------------------------------------

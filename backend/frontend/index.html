@@ -37,22 +37,19 @@
     <div id="app">
         <aside id="sidebar" class="bg-body-tertiary border-end">
 
-            <!-- Пара сцен -->
+            <!-- Пара (событие) -->
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
-                    <h6 class="card-title text-uppercase text-secondary small fw-bold mb-3">Пара сцен</h6>
+                    <h6 class="card-title text-uppercase text-secondary small fw-bold mb-3">Пара (событие)</h6>
 
-                    <label class="form-label small mb-1" for="selBefore">Дата «до» (референс)</label>
-                    <select class="form-select form-select-sm mb-2" id="selBefore"></select>
+                    <label class="form-label small mb-1" for="selPair">Событие / AOI</label>
+                    <select class="form-select form-select-sm mb-3" id="selPair"></select>
 
-                    <label class="form-label small mb-1" for="selAfter">Дата «после» (пик)</label>
-                    <select class="form-select form-select-sm mb-3" id="selAfter"></select>
-
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary btn-sm flex-grow-1" id="btnLoad">Показать</button>
-                        <button class="btn btn-outline-secondary btn-sm" id="btnSwap"
-                            title="Поменять местами"><=></button>
+                    <div class="d-grid">
+                        <button class="btn btn-primary btn-sm" id="btnLoad">Показать</button>
                     </div>
+
+                    <div class="small text-secondary mt-2" id="pairMeta"></div>
                 </div>
             </div>
 
@@ -67,7 +64,7 @@
                         </label>
                     </div>
                     <div class="form-text small mt-1">
-                        Тянет разделитель по карте: слева — сцена «до», справа — «после».
+                        Тянет разделитель по карте: слева — вода «до», справа — вода «пик».
                     </div>
                 </div>
             </div>
