@@ -1,0 +1,8 @@
+.venv
+__pycache__
+*.pyc
+data/rasters
+data/reference_masks
+predictions/*.tif
+predictions/*.npy
+.git

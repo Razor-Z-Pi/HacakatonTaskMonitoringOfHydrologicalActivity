@@ -1,0 +1,73 @@
+paths:
+  data_root: data
+  rasters_dir: data/rasters
+  vectors_dir: data/vectors
+  tables_dir: data/tables
+  reference_masks_dir: data/reference_masks
+  predictions_dir: predictions
+  submission_csv: predictions/submission.csv
+  sample_submission_csv: data/sample_submission.csv
+  static_dir: frontend
+  pairs_table: data/pairs.csv
+
+grid:
+  crs: "EPSG:32652"
+  pixel_size_m: 10.0
+  # фактическая площадь пикселя всегда пересчитывается из аффинной трансформации растра.
+  pixel_area_ha_fallback: 0.01
+
+raster_files:
+  s1_pre: "S1_pre.tif"
+  s1_peak: "S1_peak.tif"
+  s2_pre: "SENTINEL2_pre.tif"   #
+  s2_peak: "SENTINEL2_peak.tif"
+  aux: "AUX_terrain_gsw.tif"
+  s2_pre_json: "SENTINEL2_pre.json"
+  s2_peak_json: "SENTINEL2_peak.json"
+  era5_daily: "ERA5_daily.csv"
+
+# Индексы каналов (0-based) внутри многоканальных GeoTIFF.
+band_indices:
+  s1:
+    vv: 0
+    vh: 1
+    vv_vh_ratio: 2
+  s2:
+    ndwi: 4
+    mndwi: 5
+    ndvi: 6
+    aweish: 7
+  aux:
+    slope: 0
+    hand: 1
+    occurrence: 2
+    seasonality: 3
+    max_extent: 4
+    builtup: 5
+
+segmentation:
+  backend: "baseline"
+  otsu:
+    vv_min_db: -22.0
+    vv_max_db: -12.0
+  optical:
+    mndwi_min: 0.1
+    ndwi_min: 0.15
+    ndvi_max: 0.2
+    aweish_min: 0.0
+  filters:
+    slope_max_deg: 5.0
+    hand_max_m: 25.0
+    permanent_occurrence_min: 80.0
+    min_mapping_unit_px: 25
+
+analysis:
+  apply_mmu_to_change: true
+
+cache:
+  force_recompute: false
+
+api:
+  cors_origins: ["*"]
+  title: "HydroWatch Amur — API мониторинга затопления"
+  version: "0.1.0"

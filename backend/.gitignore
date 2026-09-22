@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+predictions/*.tif
+predictions/*.npy
+predictions/submission.csv
+data/rasters/
+data/reference_masks/
+.env
