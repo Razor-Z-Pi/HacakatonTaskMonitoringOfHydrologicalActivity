@@ -64,9 +64,9 @@ class DataRepository:
                     "pair_id": pair_id,
                     "event_id": row["event_id"].strip(),
                     "aoi_name": row["aoi_name"].strip(),
-                    "date_pre": row["date_pre"].strip(),
-                    "date_peak": row["date_peak"].strip(),
-                    "group": row.get("group", "event").strip() or "event",
+                    "date_pre": row["date_pre_sar"].strip(),
+                    "date_peak": row["date_peak_sar"].strip(),
+                    "group": row.get("event_kind", "event").strip() or "event",
                     "has_optical": self._detect_optical(row),
                 }
         logger.info("Загружено %d пар из %s", len(self._pairs), path)
@@ -80,6 +80,10 @@ class DataRepository:
 
     def _detect_optical(self, row: dict) -> bool:
         """Определяет доступность оптики по наличию SENTINEL2_*.json паспорта."""
+        date_pre_opt = (row.get("date_pre_opt") or "").strip()
+        date_peak_opt = (row.get("date_peak_opt") or "").strip()
+        if date_pre_opt and date_peak_opt:
+            return True
         pair_dir = self.cfg.rasters_dir / row["event_id"].strip() / row["aoi_name"].strip()
         s2_pre = pair_dir / self.cfg.raster_files.get("s2_pre_json", "SENTINEL2_pre.json")
         s2_peak = pair_dir / self.cfg.raster_files.get("s2_peak_json", "SENTINEL2_peak.json")
@@ -109,12 +113,19 @@ class DataRepository:
     # Пути к сырым растрам пары
     # ------------------------------------------------------------------
     def _pair_dir(self, pair_row: dict) -> Path:
+        if pair_row.get("rasters_dir"):
+            p = Path(pair_row["rasters_dir"])
+            return p if p.is_absolute() else (self.cfg.root / p)
         return self.cfg.rasters_dir / pair_row["event_id"] / pair_row["aoi_name"]
 
     def _raster_path(self, pair_row: dict, key: str) -> Path:
         return self._pair_dir(pair_row) / self.cfg.raster_files[key]
 
     def _reference_mask_path(self, pair_id: str) -> Path:
+        pair_row = self._pairs.get(pair_id, {})
+        if pair_row.get("reference_mask"):
+            p = Path(pair_row["reference_mask"])
+            return p if p.is_absolute() else (self.cfg.root / p)
         return self.cfg.reference_masks_dir / f"reference_{pair_id}.tif"
 
     # ------------------------------------------------------------------
