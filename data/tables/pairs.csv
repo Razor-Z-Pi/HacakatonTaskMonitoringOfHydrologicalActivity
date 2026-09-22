@@ -1,0 +1,4 @@
+pair_id,event_id,aoi_name,date_pre,date_peak,group,has_optical
+flood_2019_07_amur__belogorsk,flood_2019_07_amur,belogorsk,2019-07-20,2019-08-02,event,true
+flood_2021_06_amur__poyarkovo,flood_2021_06_amur,poyarkovo,2021-06-10,2021-06-25,event,false
+baseline_2018_09_low__svobodny,baseline_2018_09_low,svobodny,2018-09-01,2018-09-15,control,false

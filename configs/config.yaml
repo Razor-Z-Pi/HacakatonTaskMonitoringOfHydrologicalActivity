@@ -1,0 +1,77 @@
+# Единая точка конфигурации сервиса.
+# Ничего из порогов/путей не должно дублироваться константами в коде (критерий "Структура проекта").
+
+paths:
+  data_root: data
+  rasters_dir: data/rasters            # data/rasters/<event_id>/<aoi_name>/...
+  vectors_dir: data/vectors            # границы, гидрография, бассейны
+  tables_dir: data/tables              # реестр событий, каталог сцен, pairs.csv
+  reference_masks_dir: data/reference_masks
+  predictions_dir: predictions         # <pair_id>_flood.tif и кэш промежуточных масок
+  submission_csv: predictions/submission.csv
+  static_dir: static
+  pairs_table: data/tables/pairs.csv
+
+grid:
+  crs: "EPSG:32652"
+  pixel_size_m: 10.0
+  # 10 x 10 м = 100 м^2 = 0.01 га; используется как fallback,
+  # фактическая площадь пикселя всегда пересчитывается из аффинной трансформации растра.
+  pixel_area_ha_fallback: 0.01
+
+raster_files:
+  # Имена файлов внутри rasters/<event_id>/<aoi_name>/ — по составу набора из постановки кейса.
+  s1_pre: "S1_pre.tif"          # VV, VH, VV_VH_ratio, дБ
+  s1_peak: "S1_peak.tif"
+  s2_pre: "SENTINEL2_pre.tif"   # B3,B4,B8,B11 + NDWI,MNDWI,NDVI,AWEIsh (может отсутствовать)
+  s2_peak: "SENTINEL2_peak.tif"
+  aux: "AUX_terrain_gsw.tif"    # slope,hand,occurrence,seasonality,max_extent,builtup
+
+# Индексы каналов (0-based) внутри многоканальных GeoTIFF.
+band_indices:
+  s1:
+    vv: 0
+    vh: 1
+    vv_vh_ratio: 2
+  s2:
+    ndwi: 4
+    mndwi: 5
+    ndvi: 6
+    aweish: 7
+  aux:
+    slope: 0
+    hand: 1
+    occurrence: 2
+    seasonality: 3
+    max_extent: 4
+    builtup: 5
+
+segmentation:
+  # baseline — классический пайплайн, включён "из коробки", чтобы сервис был воспроизводим без ML.
+  # Реальная модель (LightGBM и т.п.) подключается отдельно, см. src/segmentation/registry.py
+  backend: "baseline"
+  otsu:
+    vv_min_db: -22.0
+    vv_max_db: -12.0
+  optical:
+    mndwi_min: 0.1
+    ndwi_min: 0.15
+    ndvi_max: 0.2
+    aweish_min: 0.0
+  filters:
+    slope_max_deg: 5.0
+    hand_max_m: 25.0
+    permanent_occurrence_min: 80.0
+    min_mapping_unit_px: 25
+
+analysis:
+  apply_mmu_to_change: true
+
+cache:
+  # Если true — маски пересчитываются даже при наличии файла в predictions/.
+  force_recompute: false
+
+api:
+  cors_origins: ["*"]
+  title: "HydroWatch Amur — API мониторинга затопления"
+  version: "0.1.0"

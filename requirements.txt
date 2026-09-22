@@ -1,0 +1,17 @@
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+pydantic==2.9.*
+pyyaml==6.0.*
+python-multipart==0.0.*
+
+rasterio==1.5.*
+numpy==2.*
+scipy==1.18.*
+geopandas==1.1.*
+shapely==2.1.*
+pyproj==3.8.*
+scikit-image==0.26.*
+
+plotly==5.*
+matplotlib==3.*
+jinja2==3.*

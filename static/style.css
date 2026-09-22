@@ -1,0 +1,21 @@
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+.sidebar {
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  background: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+}
+
+#map {
+  height: calc(100vh - 56px);
+  width: 100%;
+}
+
+#reportJson {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

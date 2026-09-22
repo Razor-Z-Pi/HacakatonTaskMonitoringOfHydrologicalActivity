@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HydroWatch Amur — мониторинг затопления</title>
+
+  <!-- Все библиотеки — локально, в vendor/, без CDN (требование "Воспроизводимость") -->
+  <link rel="stylesheet" href="vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="vendor/leaflet-sidebyside/leaflet-side-by-side.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark px-3">
+    <span class="navbar-brand mb-0 h1">HydroWatch Amur</span>
+    <span class="navbar-text text-light small">Гидрологический мониторинг · SAR + оптика</span>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="row">
+      <aside class="col-md-3 col-lg-3 p-3 sidebar">
+        <div class="mb-3">
+          <label for="pairSelect" class="form-label">Пара «до / пик»</label>
+          <select id="pairSelect" class="form-select"></select>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h6 class="card-title">Площади</h6>
+            <dl class="row mb-0 small" id="areasBlock">
+              <dt class="col-7">Затопление</dt><dd class="col-5" id="areaFlood">—</dd>
+              <dt class="col-7">Вода «до»</dt><dd class="col-5" id="areaPre">—</dd>
+              <dt class="col-7">Вода «пик»</dt><dd class="col-5" id="areaPeak">—</dd>
+              <dt class="col-7">Площадь AOI</dt><dd class="col-5" id="areaAoi">—</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <button id="btnReport" class="btn btn-outline-secondary btn-sm w-100 mb-2">Сводный отчёт</button>
+          <button id="btnDownloadGeojson" class="btn btn-outline-primary btn-sm w-100 mb-2">Скачать GeoJSON</button>
+          <button id="btnDownloadShp" class="btn btn-outline-primary btn-sm w-100">Скачать Shapefile</button>
+        </div>
+
+        <div id="reportBlock" class="small text-muted"></div>
+      </aside>
+
+      <main class="col-md-9 col-lg-9 p-0">
+        <div id="map"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Модальное окно отчёта -->
+  <div class="modal fade" id="reportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Сводный отчёт</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body"><pre id="reportJson" class="small"></pre></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/leaflet-sidebyside/leaflet-side-by-side.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
